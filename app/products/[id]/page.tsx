@@ -124,6 +124,26 @@ export default function ProductDetailsPage() {
     ? (product.category as any).name
     : product.category;
 
+  // الحصول على الصورة الأولى من images array أو استخدام image
+  const getProductImage = (): string => {
+    // إذا كان هناك images array
+    if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+      // تنظيف الصورة الأولى من الأقواس المعقوفة إذا وجدت
+      let firstImage = product.images[0];
+      if (firstImage.startsWith('{')) {
+        firstImage = firstImage.substring(1);
+      }
+      if (firstImage.endsWith('}')) {
+        firstImage = firstImage.substring(0, firstImage.length - 1);
+      }
+      return firstImage;
+    }
+    // استخدام image المفرد
+    return product.image || '/placeholder.svg';
+  };
+
+  const productImage = getProductImage();
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -136,7 +156,7 @@ export default function ProductDetailsPage() {
             <div className="flex flex-col gap-4">
               <div className="relative h-96 sm:h-full rounded-lg overflow-hidden bg-muted border border-border">
                 <Image
-                  src={product.image || "/placeholder.svg"}
+                  src={productImage}
                   alt={product.name}
                   fill
                   className="object-cover"

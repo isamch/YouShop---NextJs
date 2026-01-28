@@ -98,11 +98,18 @@ export const productService = {
 
       const url = `${API_ENDPOINTS.CATALOG.PRODUCTS}?${queryParams}`;
 
-      const response = await apiClient.get<Product[]>(url, false);
-      return response.data;
+      const response = await apiClient.get<any>(url, false);
+
+      // معالجة البيانات (قد تكون في products property)
+      let data = response.data;
+      if (data && typeof data === 'object' && 'products' in data) {
+        data = data.products;
+      }
+
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       console.error('Failed to search products:', error);
-      throw error;
+      return [];
     }
   },
 
@@ -114,13 +121,32 @@ export const productService = {
     try {
       const url = `${API_ENDPOINTS.CATALOG.PRODUCTS}?limit=${limit}&featured=true`;
 
-      const response = await apiClient.get<Product[]>(url, false);
-      return response.data;
+      const response = await apiClient.get<any>(url, false);
+
+      // معالجة البيانات (قد تكون في products property)
+      let data = response.data;
+      if (data && typeof data === 'object' && 'products' in data) {
+        data = data.products;
+      }
+
+      const products = Array.isArray(data) ? data : [];
+
+      // إذا لم نجد منتجات مميزة، نجلب أول المنتجات
+      if (products.length === 0) {
+        const allProducts = await this.getAllProducts({ limit });
+        return allProducts.slice(0, limit);
+      }
+
+      return products;
     } catch (error) {
       console.error('Failed to fetch featured products:', error);
       // في حالة الفشل، نرجع أول المنتجات
-      const allProducts = await this.getAllProducts({ limit });
-      return allProducts.slice(0, limit);
+      try {
+        const allProducts = await this.getAllProducts({ limit });
+        return allProducts.slice(0, limit);
+      } catch {
+        return [];
+      }
     }
   },
 

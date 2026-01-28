@@ -44,13 +44,33 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
     ? Math.round(((originalPrice - price) / originalPrice) * 100)
     : 0;
 
+  // الحصول على الصورة الأولى من images array أو استخدام image
+  const getProductImage = (): string => {
+    // إذا كان هناك images array
+    if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+      // تنظيف الصورة الأولى من الأقواس المعقوفة إذا وجدت
+      let firstImage = product.images[0];
+      if (firstImage.startsWith('{')) {
+        firstImage = firstImage.substring(1);
+      }
+      if (firstImage.endsWith('}')) {
+        firstImage = firstImage.substring(0, firstImage.length - 1);
+      }
+      return firstImage;
+    }
+    // استخدام image المفرد
+    return product.image || '/placeholder.svg';
+  };
+
+  const productImage = getProductImage();
+
   if (compact) {
     return (
       <Link href={`/products/${product.id}`}>
         <div className="group rounded-lg overflow-hidden bg-card border border-border hover:shadow-md transition-shadow duration-200">
           <div className="relative h-40 w-full overflow-hidden bg-muted">
             <Image
-              src={product.image || "/placeholder.svg"}
+              src={productImage}
               alt={product.name}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -88,7 +108,7 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
       <div className="group rounded-lg overflow-hidden bg-card border border-border hover:shadow-lg transition-all duration-300">
         <div className="relative h-64 w-full overflow-hidden bg-muted">
           <Image
-            src={product.image || "/placeholder.svg"}
+            src={productImage}
             alt={product.name}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-300"
