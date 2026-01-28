@@ -1,66 +1,167 @@
-import { AuthResponse, User } from '@/lib/types';
-import { MOCK_USER } from '@/lib/mock-data';
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+import { apiClient, TokenManager } from './api-client';
+import { API_ENDPOINTS } from '@/lib/config/api';
+import type {
+  AuthResponse,
+  LoginRequest,
+  RegisterRequest,
+  RefreshTokenRequest,
+  User,
+} from '@/lib/types/api';
 
 export const authService = {
-  // Login
+  /**
+   * تسجيل الدخول
+   * Login user with email and password
+   */
   async login(email: string, password: string): Promise<AuthResponse> {
-    await delay(800);
-    // Mock validation
-    if (email && password.length >= 6) {
-      return {
-        user: MOCK_USER,
-        token: 'mock-jwt-token-' + Date.now(),
-      };
+    const loginData: LoginRequest = { email, password };
+
+    const response = await apiClient.post<AuthResponse>(
+      API_ENDPOINTS.AUTH.LOGIN,
+      loginData,
+      false // لا يتطلب مصادقة
+    );
+
+    // حفظ الرموز
+    if (response.data.accessToken) {
+      TokenManager.setTokens(
+        response.data.accessToken,
+        response.data.refreshToken
+      );
     }
-    throw new Error('Invalid credentials');
+
+    return response.data;
   },
 
-  // Register
+  /**
+   * تسجيل مستخدم جديد
+   * Register new user
+   */
   async register(
-    name: string,
+    firstName: string,
+    lastName: string,
     email: string,
     password: string
   ): Promise<AuthResponse> {
-    await delay(800);
-    if (name && email && password.length >= 6) {
-      const newUser: User = {
-        id: 'user-' + Date.now(),
-        email,
-        name,
-        addresses: [],
-      };
-      return {
-        user: newUser,
-        token: 'mock-jwt-token-' + Date.now(),
-      };
+    const registerData: RegisterRequest = {
+      firstName,
+      lastName,
+      email,
+      password,
+    };
+
+    const response = await apiClient.post<AuthResponse>(
+      API_ENDPOINTS.AUTH.REGISTER,
+      registerData,
+      false // لا يتطلب مصادقة
+    );
+
+    // حفظ الرموز
+    if (response.data.accessToken) {
+      TokenManager.setTokens(
+        response.data.accessToken,
+        response.data.refreshToken
+      );
     }
-    throw new Error('Invalid registration data');
+
+    return response.data;
   },
 
-  // Get current user
-  async getCurrentUser(): Promise<User | null> {
-    await delay(300);
-    // Check if token exists in localStorage
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token');
-      return token ? MOCK_USER : null;
-    }
-    return null;
-  },
-
-  // Logout
+  /**
+   * تسجيل الخروج
+   * Logout current user
+   */
   async logout(): Promise<void> {
-    await delay(300);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
+    try {
+      await apiClient.post(API_ENDPOINTS.AUTH.LOGOUT, {}, true);
+    } finally {
+      // مسح الرموز حتى لو فشل الطلب
+      TokenManager.clearTokens();
     }
   },
 
-  // Update user profile
-  async updateProfile(user: Partial<User>): Promise<User> {
-    await delay(500);
-    return { ...MOCK_USER, ...user };
+  /**
+   * الحصول على المستخدم الحالي
+   * Get current authenticated user
+   */
+  async getCurrentUser(): Promise<User | null> {
+    try {
+      const token = TokenManager.getAccessToken();
+      if (!token) {
+        return null;
+      }
+
+      const response = await apiClient.get<User>(
+        API_ENDPOINTS.AUTH.PROFILE,
+        true
+      );
+
+      return response.data;
+    } catch (error) {
+      // في حالة فشل الحصول على المستخدم، مسح الرموز
+      TokenManager.clearTokens();
+      return null;
+    }
+  },
+
+  /**
+   * نسيت كلمة المرور
+   * Request password reset
+   */
+  async forgotPassword(email: string): Promise<void> {
+    await apiClient.post(
+      API_ENDPOINTS.AUTH.FORGOT_PASSWORD,
+      { email },
+      false
+    );
+  },
+
+  /**
+   * إعادة تعيين كلمة المرور
+   * Reset password with token
+   */
+  async resetPassword(token: string, password: string): Promise<void> {
+    await apiClient.post(
+      API_ENDPOINTS.AUTH.RESET_PASSWORD,
+      { token, password },
+      false
+    );
+  },
+
+  /**
+   * تحديث الرموز
+   * Refresh access token
+   */
+  async refreshToken(): Promise<AuthResponse> {
+    const refreshToken = TokenManager.getRefreshToken();
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    const refreshData: RefreshTokenRequest = { refreshToken };
+
+    const response = await apiClient.post<AuthResponse>(
+      API_ENDPOINTS.AUTH.REFRESH,
+      refreshData,
+      false
+    );
+
+    // تحديث الرموز
+    if (response.data.accessToken) {
+      TokenManager.setTokens(
+        response.data.accessToken,
+        response.data.refreshToken
+      );
+    }
+
+    return response.data;
+  },
+
+  /**
+   * التحقق من حالة المصادقة
+   * Check if user is authenticated
+   */
+  isAuthenticated(): boolean {
+    return !!TokenManager.getAccessToken();
   },
 };

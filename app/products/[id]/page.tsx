@@ -1,29 +1,128 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { notFound } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { ProductCard } from '@/components/product-card';
 import { Button } from '@/components/ui/button';
-import { Star, ShoppingCart, Heart, Share2 } from 'lucide-react';
+import { Star, ShoppingCart, Heart, Share2, Loader2, AlertCircle } from 'lucide-react';
 import { productService } from '@/lib/services/product-service';
+import { useCart } from '@/contexts/cart-context';
+import { Product } from '@/lib/types';
 
-export default async function ProductDetailsPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const product = await productService.getProductById(id);
+export default function ProductDetailsPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { addItem } = useCart();
 
-  if (!product) {
-    notFound();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [quantity, setQuantity] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const id = params?.id as string;
+
+  useEffect(() => {
+    const loadProduct = async () => {
+      if (!id) return;
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const [productData, related] = await Promise.all([
+          productService.getProductById(id),
+          productService.getRelatedProducts(id).catch(() => []),
+        ]);
+
+        setProduct(productData);
+        setRelatedProducts(related);
+      } catch (err: any) {
+        console.error('Failed to load product:', err);
+        setError(err.error || 'Failed to load product. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProduct();
+  }, [id]);
+
+  const handleAddToCart = () => {
+    if (product) {
+      addItem(product, quantity);
+      // يمكن إضافة toast notification هنا
+    }
+  };
+
+  const handleQuantityChange = (delta: number) => {
+    const newQuantity = quantity + delta;
+    if (newQuantity >= 1 && (!product?.quantity || newQuantity <= product.quantity)) {
+      setQuantity(newQuantity);
+    }
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading product...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
-  const relatedProducts = await productService.getRelatedProducts(id);
-  const discountPercentage = product.originalPrice
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+  // Error state
+  if (error || !product) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-md mx-auto px-4">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-foreground mb-2">Product Not Found</h1>
+            <p className="text-muted-foreground mb-6">
+              {error || 'The product you are looking for does not exist or has been removed.'}
+            </p>
+            <Button onClick={() => router.push('/products')}>
+              Browse Products
+            </Button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // تحويل السعر من string إلى number
+  const formatPrice = (price: number | string): string => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+    return numPrice.toFixed(2);
+  };
+
+  // حساب نسبة الخصم
+  const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
+  const originalPrice = product.originalPrice
+    ? (typeof product.originalPrice === 'string' ? parseFloat(product.originalPrice) : product.originalPrice)
+    : null;
+
+  const discountPercentage = originalPrice
+    ? Math.round(((originalPrice - price) / originalPrice) * 100)
     : 0;
+
+  // Get category name
+  const categoryName = typeof product.category === 'object' && product.category !== null
+    ? (product.category as any).name
+    : product.category;
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -55,7 +154,7 @@ export default async function ProductDetailsPage({
             <div className="flex flex-col">
               <div className="mb-6">
                 <p className="text-sm text-muted-foreground uppercase tracking-wide mb-2">
-                  {product.category}
+                  {categoryName}
                 </p>
                 <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
                   {product.name}
@@ -67,11 +166,10 @@ export default async function ProductDetailsPage({
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`w-4 h-4 ${
-                          i < Math.floor(product.rating)
-                            ? 'fill-accent text-accent'
-                            : 'text-border'
-                        }`}
+                        className={`w-4 h-4 ${i < Math.floor(product.rating)
+                          ? 'fill-accent text-accent'
+                          : 'text-border'
+                          }`}
                       />
                     ))}
                   </div>
@@ -84,11 +182,11 @@ export default async function ProductDetailsPage({
                 <div className="mb-6">
                   <div className="flex items-baseline gap-3">
                     <span className="text-4xl font-bold text-foreground">
-                      ${product.price.toFixed(2)}
+                      ${formatPrice(product.price)}
                     </span>
                     {product.originalPrice && (
                       <span className="text-xl text-muted-foreground line-through">
-                        ${product.originalPrice.toFixed(2)}
+                        ${formatPrice(product.originalPrice)}
                       </span>
                     )}
                   </div>
@@ -105,7 +203,7 @@ export default async function ProductDetailsPage({
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-green-500" />
                       <span className="text-sm font-medium text-foreground">
-                        In Stock ({product.quantity} available)
+                        In Stock {product.quantity && `(${product.quantity} available)`}
                       </span>
                     </div>
                   ) : (
@@ -119,16 +217,31 @@ export default async function ProductDetailsPage({
                 {/* Quantity Selector */}
                 <div className="flex items-center gap-4 mb-6">
                   <div className="flex items-center border border-border rounded-md">
-                    <button className="px-4 py-2 text-foreground hover:bg-muted transition-colors">
+                    <button
+                      onClick={() => handleQuantityChange(-1)}
+                      disabled={quantity <= 1}
+                      className="px-4 py-2 text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                       -
                     </button>
                     <input
                       type="number"
-                      defaultValue="1"
+                      value={quantity}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 1;
+                        if (val >= 1 && (!product.quantity || val <= product.quantity)) {
+                          setQuantity(val);
+                        }
+                      }}
                       className="w-12 text-center border-l border-r border-border bg-background text-foreground outline-none"
                       min="1"
+                      max={product.quantity || undefined}
                     />
-                    <button className="px-4 py-2 text-foreground hover:bg-muted transition-colors">
+                    <button
+                      onClick={() => handleQuantityChange(1)}
+                      disabled={!product.quantity || quantity >= product.quantity}
+                      className="px-4 py-2 text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                       +
                     </button>
                   </div>
@@ -139,6 +252,7 @@ export default async function ProductDetailsPage({
                   <Button
                     size="lg"
                     disabled={!product.inStock}
+                    onClick={handleAddToCart}
                     className="flex-1 flex items-center justify-center gap-2"
                   >
                     <ShoppingCart className="w-5 h-5" />

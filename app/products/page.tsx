@@ -8,46 +8,81 @@ import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
 import { productService } from '@/lib/services/product-service';
 import { Product } from '@/lib/types';
-import { CATEGORIES } from '@/lib/mock-data';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<string[]>(['All']);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortBy, setSortBy] = useState('featured');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // تحميل المنتجات والفئات
   useEffect(() => {
-    const loadProducts = async () => {
+    const loadData = async () => {
       setIsLoading(true);
+      setError(null);
+
       try {
-        const allProducts = await productService.getAllProducts();
-        setProducts(allProducts);
+        // تحميل المنتجات والفئات بالتوازي
+        const [allProducts, allCategories] = await Promise.all([
+          productService.getAllProducts(),
+          productService.getAllCategories().catch(() => []), // في حالة فشل الفئات، نستخدم array فارغ
+        ]);
+
+        // التأكد من أن allProducts هو array
+        const productsArray = Array.isArray(allProducts) ? allProducts : [];
+        setProducts(productsArray);
+
+        // إضافة "All" للفئات
+        if (Array.isArray(allCategories) && allCategories.length > 0) {
+          const categoryNames = allCategories.map(cat => cat.name);
+          setCategories(['All', ...categoryNames]);
+        }
+      } catch (err: any) {
+        console.error('Failed to load products:', err);
+        setError(err.error || 'Failed to load products. Please try again.');
+        setProducts([]); // تعيين array فارغ في حالة الخطأ
       } finally {
         setIsLoading(false);
       }
     };
-    loadProducts();
+
+    loadData();
   }, []);
 
   useEffect(() => {
-    let filtered = products;
+    // التأكد من أن products هو array
+    if (!Array.isArray(products)) {
+      setFilteredProducts([]);
+      return;
+    }
+
+    let filtered = [...products]; // نسخة من المنتجات
 
     // Filter by category
     if (selectedCategory !== 'All') {
-      filtered = filtered.filter(p => p.category === selectedCategory);
+      filtered = filtered.filter(p => {
+        // إذا كانت p.category من نوع Category object
+        if (typeof p.category === 'object' && p.category !== null) {
+          return (p.category as any).name === selectedCategory;
+        }
+        // إذا كانت p.category من نوع string
+        return p.category === selectedCategory;
+      });
     }
 
     // Sort
     switch (sortBy) {
       case 'price-low':
-        filtered = [...filtered].sort((a, b) => a.price - b.price);
+        filtered = filtered.sort((a, b) => a.price - b.price);
         break;
       case 'price-high':
-        filtered = [...filtered].sort((a, b) => b.price - a.price);
+        filtered = filtered.sort((a, b) => b.price - a.price);
         break;
       case 'rating':
-        filtered = [...filtered].sort((a, b) => b.rating - a.rating);
+        filtered = filtered.sort((a, b) => b.rating - a.rating);
         break;
       case 'featured':
       default:
@@ -72,6 +107,13 @@ export default function ProductsPage() {
             </p>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            </div>
+          )}
+
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Sidebar */}
             <aside className="lg:w-48 flex-shrink-0">
@@ -80,15 +122,14 @@ export default function ProductsPage() {
                 <div>
                   <h3 className="font-semibold text-foreground mb-3">Categories</h3>
                   <div className="space-y-2">
-                    {CATEGORIES.map((category) => (
+                    {categories.map((category) => (
                       <button
                         key={category}
                         onClick={() => setSelectedCategory(category)}
-                        className={`block w-full text-left px-3 py-2 rounded-md transition-colors ${
-                          selectedCategory === category
-                            ? 'bg-primary text-primary-foreground'
-                            : 'hover:bg-muted text-foreground'
-                        }`}
+                        className={`block w-full text-left px-3 py-2 rounded-md transition-colors ${selectedCategory === category
+                          ? 'bg-primary text-primary-foreground'
+                          : 'hover:bg-muted text-foreground'
+                          }`}
                       >
                         {category}
                       </button>

@@ -28,8 +28,20 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
     }
   };
 
-  const discountPercentage = product.originalPrice
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+  // تحويل السعر من string إلى number
+  const formatPrice = (price: number | string): string => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+    return numPrice.toFixed(2);
+  };
+
+  // حساب نسبة الخصم
+  const price = typeof product.price === 'string' ? parseFloat(product.price) : product.price;
+  const originalPrice = product.originalPrice
+    ? (typeof product.originalPrice === 'string' ? parseFloat(product.originalPrice) : product.originalPrice)
+    : null;
+
+  const discountPercentage = originalPrice
+    ? Math.round(((originalPrice - price) / originalPrice) * 100)
     : 0;
 
   if (compact) {
@@ -58,10 +70,10 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
               </span>
             </div>
             <div className="flex items-end gap-2">
-              <span className="font-bold text-lg text-foreground">${product.price.toFixed(2)}</span>
+              <span className="font-bold text-lg text-foreground">${formatPrice(product.price)}</span>
               {product.originalPrice && (
                 <span className="text-xs text-muted-foreground line-through">
-                  ${product.originalPrice.toFixed(2)}
+                  ${formatPrice(product.originalPrice)}
                 </span>
               )}
             </div>
@@ -103,10 +115,10 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
           </div>
           <div className="flex items-end justify-between gap-3">
             <div>
-              <span className="text-xl font-bold text-foreground">${product.price.toFixed(2)}</span>
+              <span className="text-xl font-bold text-foreground">${formatPrice(product.price)}</span>
               {product.originalPrice && (
                 <span className="text-sm text-muted-foreground line-through ml-2">
-                  ${product.originalPrice.toFixed(2)}
+                  ${formatPrice(product.originalPrice)}
                 </span>
               )}
             </div>

@@ -11,27 +11,54 @@ import { useAuth } from '@/contexts/auth-context';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, error: authError, clearError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
+
+  // مسح الأخطاء عند تغيير الحقول
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    setLocalError('');
+    clearError();
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    setLocalError('');
+    clearError();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setLocalError('');
+    clearError();
 
+    // التحقق من الحقول
     if (!email || !password) {
-      setError('Please fill in all fields');
+      setLocalError('Please fill in all fields');
+      return;
+    }
+
+    // التحقق من صحة البريد الإلكتروني
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setLocalError('Please enter a valid email address');
       return;
     }
 
     try {
       await login(email, password);
+      // إعادة التوجيه للصفحة الرئيسية بعد تسجيل الدخول بنجاح
       router.push('/');
     } catch (err) {
-      setError('Invalid email or password');
+      // الخطأ سيتم عرضه من authError
+      console.error('Login failed:', err);
     }
   };
+
+  // دمج الأخطاء المحلية مع أخطاء المصادقة
+  const displayError = localError || authError;
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -45,10 +72,10 @@ export default function LoginPage() {
               Sign in to your account to continue shopping
             </p>
 
-            {error && (
+            {displayError && (
               <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex gap-3">
                 <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <p className="text-sm text-red-600 dark:text-red-400">{displayError}</p>
               </div>
             )}
 
@@ -63,7 +90,7 @@ export default function LoginPage() {
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={handleEmailChange}
                     className="w-full pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="you@example.com"
                   />
@@ -80,7 +107,7 @@ export default function LoginPage() {
                     id="password"
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={handlePasswordChange}
                     className="w-full pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="••••••••"
                   />
@@ -109,7 +136,7 @@ export default function LoginPage() {
             <div className="mt-4">
               <p className="text-xs text-muted-foreground text-center mb-2">Demo Credentials:</p>
               <p className="text-xs text-muted-foreground text-center">
-                Email: demo@example.com<br />
+                Email: admin@youshop.com<br />
                 Password: password123
               </p>
             </div>

@@ -11,39 +11,68 @@ import { useAuth } from '@/contexts/auth-context';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, isLoading } = useAuth();
-  const [name, setName] = useState('');
+  const { register, isLoading, error: authError, clearError } = useAuth();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  const [localErrors, setLocalErrors] = useState<string[]>([]);
+
+  // مسح الأخطاء عند تغيير الحقول
+  const handleFieldChange = (setter: (value: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setter(e.target.value);
+    setLocalErrors([]);
+    clearError();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setLocalErrors([]);
+    clearError();
 
-    if (!name || !email || !password || !confirmPassword) {
-      setError('Please fill in all fields');
-      return;
+    const errors: string[] = [];
+
+    // التحقق من الحقول
+    if (!firstName.trim()) errors.push('First name is required');
+    if (!lastName.trim()) errors.push('Last name is required');
+    if (!email.trim()) errors.push('Email is required');
+    if (!password) errors.push('Password is required');
+    if (!confirmPassword) errors.push('Please confirm your password');
+
+    // التحقق من صحة البريد الإلكتروني
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (email && !emailRegex.test(email)) {
+      errors.push('Please enter a valid email address');
     }
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
+    // التحقق من تطابق كلمات المرور
+    if (password && confirmPassword && password !== confirmPassword) {
+      errors.push('Passwords do not match');
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    // التحقق من قوة كلمة المرور
+    if (password && password.length < 8) {
+      errors.push('Password must be at least 8 characters long');
+    }
+
+    if (errors.length > 0) {
+      setLocalErrors(errors);
       return;
     }
 
     try {
-      await register(name, email, password);
+      await register(firstName, lastName, email, password);
       router.push('/');
-    } catch (err) {
-      setError('Registration failed. Please try again.');
+    } catch (err: any) {
+      // الخطأ سيتم عرضه من authError
+      console.error('Registration failed:', err);
     }
   };
+
+  // دمج الأخطاء المحلية مع أخطاء المصادقة
+  const displayErrors = localErrors.length > 0 ? localErrors :
+    (authError ? [authError] : []);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -57,28 +86,59 @@ export default function RegisterPage() {
               Join us and start shopping today
             </p>
 
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            {displayErrors.length > 0 && (
+              <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div className="flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    {displayErrors.length === 1 ? (
+                      <p className="text-sm text-red-600 dark:text-red-400">{displayErrors[0]}</p>
+                    ) : (
+                      <ul className="text-sm text-red-600 dark:text-red-400 list-disc list-inside space-y-1">
+                        {displayErrors.map((error, index) => (
+                          <li key={index}>{error}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-foreground mb-2">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <input
-                    id="name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="John Doe"
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-foreground mb-2">
+                    First Name
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <input
+                      id="firstName"
+                      type="text"
+                      value={firstName}
+                      onChange={handleFieldChange(setFirstName)}
+                      className="w-full pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="John"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-foreground mb-2">
+                    Last Name
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <input
+                      id="lastName"
+                      type="text"
+                      value={lastName}
+                      onChange={handleFieldChange(setLastName)}
+                      className="w-full pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="Doe"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -92,7 +152,7 @@ export default function RegisterPage() {
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={handleFieldChange(setEmail)}
                     className="w-full pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="you@example.com"
                   />
@@ -109,11 +169,14 @@ export default function RegisterPage() {
                     id="password"
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={handleFieldChange(setPassword)}
                     className="w-full pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="••••••••"
                   />
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  At least 8 characters with uppercase, lowercase, and number
+                </p>
               </div>
 
               <div>
@@ -126,7 +189,7 @@ export default function RegisterPage() {
                     id="confirmPassword"
                     type="password"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={handleFieldChange(setConfirmPassword)}
                     className="w-full pl-10 pr-4 py-2 border border-border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="••••••••"
                   />
