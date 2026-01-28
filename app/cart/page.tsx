@@ -16,6 +16,12 @@ export default function CartPage() {
   const shipping = subtotal > 100 ? 0 : 9.99;
   const total = subtotal + tax + shipping;
 
+  // تحويل السعر من string إلى number
+  const formatPrice = (price: number | string): string => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+    return numPrice.toFixed(2);
+  };
+
   if (items.length === 0) {
     return (
       <div className="flex flex-col min-h-screen">
@@ -90,12 +96,14 @@ export default function CartPage() {
                           </h3>
                         </Link>
                         <p className="text-sm text-muted-foreground mt-1">
-                          {item.category}
+                          {typeof item.category === 'object' && item.category !== null
+                            ? (item.category as any).name
+                            : item.category}
                         </p>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-lg font-bold text-foreground">
-                          ${item.price.toFixed(2)}
+                          ${formatPrice(item.price)}
                         </span>
                       </div>
                     </div>
@@ -135,7 +143,7 @@ export default function CartPage() {
                       </div>
 
                       <span className="font-bold text-foreground">
-                        ${(item.price * item.cartQuantity).toFixed(2)}
+                        ${formatPrice((typeof item.price === 'string' ? parseFloat(item.price) : item.price) * item.cartQuantity)}
                       </span>
                     </div>
                   </div>

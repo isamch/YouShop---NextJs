@@ -10,6 +10,7 @@ import { ArrowLeft, CreditCard, Truck, User } from 'lucide-react';
 import { useCart } from '@/contexts/cart-context';
 import { orderService } from '@/lib/services/order-service';
 import { CheckoutData } from '@/lib/types';
+import { formatPrice, getProductImage } from '@/lib/utils';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -60,12 +61,16 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
+
     try {
-      await orderService.createOrder(items, formData);
+      const order = await orderService.createOrder(items, formData);
       clearCart();
-      router.push('/checkout/success');
-    } catch (error) {
+
+      // إعادة التوجيه لصفحة الطلبات
+      router.push(`/orders`);
+    } catch (error: any) {
       console.error('Order failed:', error);
+      alert(error.error || 'Failed to place order. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -114,11 +119,10 @@ export default function CheckoutPage() {
               {/* Progress Steps */}
               <div className="flex items-center gap-4 mb-8">
                 <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
-                    step === 'shipping' || step === 'payment' || step === 'review'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
-                  }`}
+                  className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${step === 'shipping' || step === 'payment' || step === 'review'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                    }`}
                 >
                   1
                 </div>
@@ -129,11 +133,10 @@ export default function CheckoutPage() {
                 <div className="flex-1 h-1 bg-muted" />
 
                 <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
-                    step === 'payment' || step === 'review'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
-                  }`}
+                  className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${step === 'payment' || step === 'review'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                    }`}
                 >
                   2
                 </div>
@@ -144,11 +147,10 @@ export default function CheckoutPage() {
                 <div className="flex-1 h-1 bg-muted" />
 
                 <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
-                    step === 'review'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
-                  }`}
+                  className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${step === 'review'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                    }`}
                 >
                   3
                 </div>
@@ -424,15 +426,23 @@ export default function CheckoutPage() {
               <div className="bg-card border border-border rounded-lg p-6 h-fit sticky top-20">
                 <h2 className="text-lg font-bold text-foreground mb-4">Order Summary</h2>
 
-                <div className="space-y-3 mb-6 pb-6 border-b border-border">
+                <div className="space-y-4 mb-6 pb-6 border-b border-border">
                   {items.map(item => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {item.name} x {item.cartQuantity}
-                      </span>
-                      <span className="text-foreground font-medium">
-                        ${(item.price * item.cartQuantity).toFixed(2)}
-                      </span>
+                    <div key={item.id} className="flex gap-3">
+                      <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                        <img
+                          src={getProductImage(item)}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">Qty: {item.cartQuantity}</p>
+                        <p className="text-sm font-bold text-foreground mt-1">
+                          ${formatPrice((typeof item.price === 'string' ? parseFloat(item.price) : item.price) * item.cartQuantity)}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -441,19 +451,19 @@ export default function CheckoutPage() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="text-foreground font-medium">
-                      ${subtotal.toFixed(2)}
+                      ${formatPrice(subtotal)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Shipping</span>
                     <span className="text-foreground font-medium">
-                      {shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}
+                      {shipping === 0 ? 'Free' : `$${formatPrice(shipping)}`}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Tax</span>
                     <span className="text-foreground font-medium">
-                      ${tax.toFixed(2)}
+                      ${formatPrice(tax)}
                     </span>
                   </div>
                 </div>
@@ -461,7 +471,7 @@ export default function CheckoutPage() {
                 <div className="flex justify-between">
                   <span className="font-bold text-foreground">Total</span>
                   <span className="text-2xl font-bold text-primary">
-                    ${total.toFixed(2)}
+                    ${formatPrice(total)}
                   </span>
                 </div>
               </div>

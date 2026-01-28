@@ -64,6 +64,22 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
 
   const productImage = getProductImage();
 
+  // التحقق من توفر المنتج (يدعم inStock و isActive)
+  const isProductInStock = (): boolean => {
+    // إذا كان inStock موجود، استخدمه
+    if (typeof product.inStock === 'boolean') {
+      return product.inStock;
+    }
+    // وإلا استخدم isActive (من الـ API)
+    if (typeof (product as any).isActive === 'boolean') {
+      return (product as any).isActive;
+    }
+    // افتراضياً، المنتج متوفر
+    return true;
+  };
+
+  const inStock = isProductInStock();
+
   if (compact) {
     return (
       <Link href={`/products/${product.id}`}>
@@ -118,7 +134,7 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
               -{discountPercentage}%
             </div>
           )}
-          {!product.inStock && (
+          {!inStock && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
               <span className="text-white font-bold">Out of Stock</span>
             </div>
@@ -144,7 +160,7 @@ export function ProductCard({ product, compact = false }: ProductCardProps) {
             </div>
             <Button
               size="sm"
-              disabled={!product.inStock || isAdding}
+              disabled={!inStock || isAdding}
               onClick={handleAddToCart}
               className="flex items-center gap-2"
             >

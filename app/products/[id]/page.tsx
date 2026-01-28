@@ -144,6 +144,22 @@ export default function ProductDetailsPage() {
 
   const productImage = getProductImage();
 
+  // التحقق من توفر المنتج (يدعم inStock و isActive)
+  const isProductInStock = (): boolean => {
+    // إذا كان inStock موجود، استخدمه
+    if (typeof product.inStock === 'boolean') {
+      return product.inStock;
+    }
+    // وإلا استخدم isActive (من الـ API)
+    if (typeof (product as any).isActive === 'boolean') {
+      return (product as any).isActive;
+    }
+    // افتراضياً، المنتج متوفر
+    return true;
+  };
+
+  const inStock = isProductInStock();
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -219,7 +235,7 @@ export default function ProductDetailsPage() {
 
                 {/* Stock Status */}
                 <div className="mb-6">
-                  {product.inStock ? (
+                  {inStock ? (
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-green-500" />
                       <span className="text-sm font-medium text-foreground">
@@ -271,7 +287,7 @@ export default function ProductDetailsPage() {
                 <div className="flex flex-col sm:flex-row gap-4 mb-8">
                   <Button
                     size="lg"
-                    disabled={!product.inStock}
+                    disabled={!inStock}
                     onClick={handleAddToCart}
                     className="flex-1 flex items-center justify-center gap-2"
                   >

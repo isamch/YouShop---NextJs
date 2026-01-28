@@ -40,8 +40,19 @@ export function Header() {
 
           {/* Right Actions */}
           <div className="hidden md:flex items-center gap-4">
+            <nav className="flex items-center gap-6 mr-4">
+              <Link href="/products" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+                Shop
+              </Link>
+              {isAuthenticated && (
+                <Link href="/orders" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+                  My Orders
+                </Link>
+              )}
+            </nav>
+
             {isAuthenticated ? (
-              <>
+              <div className="flex items-center gap-4">
                 <span className="text-sm text-foreground">Hello, {user?.name?.split(' ')[0]}</span>
                 <Button
                   variant="ghost"
@@ -52,7 +63,7 @@ export function Header() {
                   <LogOut className="w-4 h-4" />
                   Logout
                 </Button>
-              </>
+              </div>
             ) : (
               <>
                 <Link href="/auth/login">
